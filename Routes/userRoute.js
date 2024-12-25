@@ -34,6 +34,7 @@ const {
   getUserCart,
   cartCount,
 } = require("../Controllers/cartController");
+const { sendContactEmail } = require('../Controllers/contact');
 const {
   purchaseCourse,
   getPurchasedCourses,
@@ -85,6 +86,7 @@ const {
   getTutorsByUserId,
   getChatsByUserId,
   deleteChat,
+  deleteMessage
 } = require("../Controllers/chatController");
 
 const {
@@ -209,5 +211,7 @@ router
   .get("/wallet", getWalletDetails)
   .get("/alltutors", getAllTutors)
   .get("/tutors/:tutorId", getTutorDetails)
-  .get('/search', searchCourses);
+  .get('/search', searchCourses)
+  .post('/contact', sendContactEmail)
+  .delete('/messages/:chat_id/:message_id', deleteMessage);
 module.exports = router;

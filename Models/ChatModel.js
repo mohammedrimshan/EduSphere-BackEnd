@@ -1,4 +1,3 @@
-// models/Chat.js
 const mongoose = require('mongoose');
 
 const chatSchema = new mongoose.Schema({
@@ -9,8 +8,16 @@ const chatSchema = new mongoose.Schema({
   },
   tutor_id: {
     type: String,
-    ref: 'Tutor',
+    ref: 'Tutor', 
     required: true
+  },
+  user_object_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: false
+  },
+  tutor_object_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: false
   },
   last_message: {
     sender_id: {
@@ -53,24 +60,33 @@ const chatSchema = new mongoose.Schema({
       type: String,
       default: null
     },
-    reason: { 
-      type: String, 
-      default: "" 
+    reason: {
+      type: String,
+      default: ""
     }
   },
   created_at: {
     type: Date,
     default: Date.now
   },
-  updated_at: { 
-    type: Date, 
-    default: Date.now 
+  updated_at: {
+    type: Date,
+    default: Date.now
   }
 });
 
-const Chat = mongoose.model('Chat', chatSchema);
+chatSchema.pre('save', function(next) {
+  if (mongoose.Types.ObjectId.isValid(this.user_id)) {
+    this.user_object_id = this.user_id;
+    this.user_id = this.user_id.toString();
+  }
+  if (mongoose.Types.ObjectId.isValid(this.tutor_id)) {
+    this.tutor_object_id = this.tutor_id;
+    this.tutor_id = this.tutor_id.toString();
+  }
+  next();
+});
 
-// models/Message.js
 const messageSchema = new mongoose.Schema(
   {
     chat_id: {
@@ -85,7 +101,7 @@ const messageSchema = new mongoose.Schema(
     sender_id: {
       type: String,
       required: true
-    }, 
+    },
     receiver_id: {
       type: String,
       required: true
@@ -93,6 +109,11 @@ const messageSchema = new mongoose.Schema(
     message_text: {
       type: String,
       required: true
+    },
+    reply_to: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Message',
+      default: null
     },
     is_read: {
       type: Boolean,
@@ -115,7 +136,7 @@ const messageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const Chat = mongoose.model('Chat', chatSchema);
 const Message = mongoose.model('Message', messageSchema);
 
 module.exports = { Chat, Message };
-

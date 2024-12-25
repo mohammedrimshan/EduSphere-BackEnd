@@ -11,7 +11,11 @@ const {
   updateTutor,
   getUserInfo,
   calculateTutorRevenue,
-  getTutorDashboardData
+  getTutorDashboardData,
+  fetchTutorNotifications,
+  tutorPushNotification,
+  markTutorNotificationAsRead,
+  tutorNotificationStream
 } = require("../Controllers/tutorController");
 const {
   addCourse,
@@ -49,7 +53,8 @@ const {
   createChat,
   getUsersByTutorId,
   getChatsByUserId,
-  deleteChat
+  deleteChat,
+  deleteMessage
 } = require("../Controllers/chatController");
 
 const { getCourseReports } = require("../Controllers/reportController");
@@ -114,5 +119,10 @@ router
 .delete('/chat/delete/:chat_id', deleteChat)
 .get("/user-info/:userId", getUserInfo)
 .get('/revenue-dashboard',calculateTutorRevenue)
-.get('/dashboard',  getTutorDashboardData);
+.get('/dashboard',  getTutorDashboardData)
+.delete('/messages/:chat_id/:message_id', deleteMessage)
+.get("/notifications", fetchTutorNotifications)
+.post("/notifications/register-token", tutorPushNotification)
+.put("/notifications/:notificationId/read", markTutorNotificationAsRead)
+.get("/notifications/stream", tutorNotificationStream)
 module.exports = router;

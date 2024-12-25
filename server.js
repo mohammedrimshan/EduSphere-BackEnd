@@ -32,7 +32,7 @@ require('events').EventEmitter.defaultMaxListeners = 20;
 const io = new Server(httpServer, {
   cors: {
     origin: process.env.CORS_ORIGIN || "http://localhost:5173",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"]
   }
@@ -99,6 +99,19 @@ io.on("connection", (socket) => {
     }
     console.log(`[${new Date().toISOString()}] Tutor stopped typing in room: ${data.chat_id}`);
     io.to(data.chat_id).emit("tutor-stop-typing");
+  });
+
+  // Delete message handling
+  socket.on("delete-message", (data) => {
+    if (!data || !data.chat_id || !data.message_id) {
+      console.error('Invalid delete-message event: Missing chat_id or message_id', data);
+      return;
+    }
+    console.log(`[${new Date().toISOString()}] Deleting message in room: ${data.chat_id}, message ID: ${data.message_id}`);
+    io.to(data.chat_id).emit("message-deleted", {
+      chat_id: data.chat_id,
+      message_id: data.message_id
+    });
   });
 
   // WebRTC call handling

@@ -514,24 +514,21 @@ const adminLogout = async (req, res) => {
   }
 };
 
+
+//Get Dashbord 
 const getDashboardStatus = async (req, res) => {
   try {
-    // Get total students
     const totalStudents = await User.countDocuments({ status: true });
     
-    // Get total tutors
     const totalTutors = await Tutor.countDocuments({ status: true });
     
-    // Get total courses
     const totalCourses = await Course.countDocuments({ isActive: true });
     
-    // Calculate total revenue (from all enrolled courses)
     const allCourses = await Course.find({ isActive: true });
     const totalRevenue = allCourses.reduce((acc, course) => {
       return acc + (course.price * course.enrolled_count);
     }, 0);
 
-    // Get monthly revenue data for the current year
     const currentYear = new Date().getFullYear();
     const monthlyRevenue = await Course.aggregate([
       {
@@ -556,7 +553,7 @@ const getDashboardStatus = async (req, res) => {
       }
     ]);
 
-    // Get top selling courses
+   
     const topCourses = await Course.aggregate([
       {
         $match: { isActive: true }
@@ -576,7 +573,6 @@ const getDashboardStatus = async (req, res) => {
       }
     ]);
 
-    // Format monthly data for chart
     const months = Array.from({ length: 12 }, (_, i) => i + 1);
     const formattedMonthlyRevenue = months.map(month => {
       const found = monthlyRevenue.find(item => item._id === month);

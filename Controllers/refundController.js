@@ -6,13 +6,11 @@ const VideoProgress = require("../Models/ProgressModel");
 const {WalletTransaction , Refund} = require("../Models/refundModel");
  
 
-// User Controllers
 const userGetRefunds = async (req, res) => {
   try {
-    const userId = req.user._id; // Already an ObjectId from auth middleware
+    const userId = req.user._id; 
     const { status, page = 1, limit = 10 } = req.query;
 
-    // Validate page and limit
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
 
@@ -20,13 +18,11 @@ const userGetRefunds = async (req, res) => {
       return res.status(400).json({ message: "Invalid pagination parameters" });
     }
 
-    // Build query
-    const query = { userId }; // No need to convert userId since it's already an ObjectId
+    const query = { userId }; 
     if (status && status.trim() !== '') {
       query.status = status;
     }
 
-    // Get refunds with proper error handling
     const refunds = await Refund.find(query)
       .populate('courseId', 'title course_thumbnail price')
       .sort({ createdAt: -1 })
@@ -59,8 +55,8 @@ const userGetRefunds = async (req, res) => {
         const progress = await VideoProgress.aggregate([
           {
             $match: {
-              userId: userId, // userId is already an ObjectId
-              courseId: refund.courseId._id // courseId._id from populated document is already an ObjectId
+              userId: userId, 
+              courseId: refund.courseId._id 
             }
           },
           {
@@ -126,10 +122,9 @@ const userGetRefunds = async (req, res) => {
 
 const userGetRefundDetails = async (req, res) => {
   try {
-    const userId = req.user._id; // Already an ObjectId from auth middleware
+    const userId = req.user._id; 
     const { refundId } = req.params;
 
-    // Validate refundId
     if (!mongoose.Types.ObjectId.isValid(refundId)) {
       return res.status(400).json({ message: "Invalid refund ID format" });
     }
@@ -146,7 +141,6 @@ const userGetRefundDetails = async (req, res) => {
       return res.status(404).json({ message: "Refund request not found" });
     }
 
-    // Ensure courseId exists before proceeding
     if (!refund.courseId) {
       return res.status(404).json({ message: "Associated course not found" });
     }
@@ -156,8 +150,8 @@ const userGetRefundDetails = async (req, res) => {
       progress = await VideoProgress.aggregate([
         {
           $match: {
-            userId: userId, // Already an ObjectId
-            courseId: refund.courseId._id // Already an ObjectId from populated document
+            userId: userId, 
+            courseId: refund.courseId._id 
           }
         },
         {
@@ -170,10 +164,8 @@ const userGetRefundDetails = async (req, res) => {
       ]);
     } catch (err) {
       console.error('Error calculating video progress:', err);
-      // Continue execution with default values if progress calculation fails
     }
 
-    // Ensure purchaseDate exists before calculation
     const daysSincePurchase = refund.purchaseId && refund.purchaseId.purchaseDate
       ? Math.floor((Date.now() - new Date(refund.purchaseId.purchaseDate).getTime()) / (1000 * 60 * 60 * 24))
       : 0;
@@ -220,7 +212,6 @@ const requestRefund = async (req, res) => {
       reason
     });
 
-    // Validation checks remain the same...
     if (!courseId || !reason) {
       return res.status(400).json({
         message: "Missing required fields"
@@ -236,7 +227,6 @@ const requestRefund = async (req, res) => {
     const courseObjectId = new mongoose.Types.ObjectId(courseId);
     const userObjectId = new mongoose.Types.ObjectId(userId);
 
-    // Check existing refund...
     const existingRefund = await Refund.findOne({
       userId: userObjectId,
       courseId: courseObjectId
@@ -248,21 +238,18 @@ const requestRefund = async (req, res) => {
       });
     }
 
-    // Get progress records
     const progress = await VideoProgress.find({
       userId: userObjectId,
       courseId: courseObjectId
     });
 
     const totalLessons = progress.length;
-    
-    // Calculate overall course progress
+
     let totalCourseProgress = 0;
     progress.forEach(lesson => {
-      // Each lesson contributes its portion to the total course progress
-      // For example, if there are 4 lessons, each lesson is worth 25% of the total
+
       const lessonWeight = 100 / totalLessons;
-      // If lesson has any progress, count it as completed (100%)
+    
       const lessonContribution = lesson.currentTime > 0 ? lessonWeight : 0;
       totalCourseProgress += lessonContribution;
     });
@@ -277,8 +264,6 @@ const requestRefund = async (req, res) => {
         message: "Cannot refund course with progress over 25%"
       });
     }
-
-    // Find purchase and check 30-day limit...
     const purchase = await Purchase.findOne({
       userId: userObjectId,
       'items.courseId': courseObjectId
@@ -320,6 +305,8 @@ const requestRefund = async (req, res) => {
     });
   }
 };
+
+
 // Admin Controllers
 const adminGetAllRefunds = async (req, res) => {
   try {
@@ -401,15 +388,12 @@ const adminProcessRefund = async (req, res) => {
     const { refundId } = req.params;
     const { status, adminNote } = req.body;
 
-    // Input validation
     if (!refundId || !mongoose.Types.ObjectId.isValid(refundId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid refund ID provided"
       });
     }
-
-    // Find and verify refund request
     const refund = await Refund.findById(refundId)
       .populate('userId')
       .populate('courseId');
@@ -420,8 +404,6 @@ const adminProcessRefund = async (req, res) => {
         message: "Refund request not found"
       });
     }
-
-    // Verify user and course exist
     if (!refund.userId || !refund.courseId) {
       return res.status(400).json({
         success: false,
@@ -429,7 +411,6 @@ const adminProcessRefund = async (req, res) => {
       });
     }
 
-    // Check if refund is already processed
     if (refund.status !== 'pending') {
       return res.status(400).json({
         success: false,
@@ -439,7 +420,6 @@ const adminProcessRefund = async (req, res) => {
 
     if (status === 'approved') {
       try {
-        // Create wallet transaction first
         const walletTransaction = await WalletTransaction.create({
           userId: refund.userId._id,
           type: "credit",
@@ -450,7 +430,6 @@ const adminProcessRefund = async (req, res) => {
           referenceModel: "Refund"
         });
 
-        // Update user wallet and remove course
         const updatedUser = await User.findByIdAndUpdate(
           refund.userId._id,
           {
@@ -465,13 +444,11 @@ const adminProcessRefund = async (req, res) => {
           throw new Error('Failed to update user wallet and courses');
         }
 
-        // Store original purchase before updating
         const originalPurchases = await Purchase.find({
           userId: refund.userId._id,
           'items.courseId': refund.courseId._id
         });
 
-        // Remove course from Purchase collection's items array
         const updateResult = await Purchase.updateMany(
           { 
             userId: refund.userId._id,
@@ -484,7 +461,6 @@ const adminProcessRefund = async (req, res) => {
           }
         );
 
-        // Update course enrollment count
         const updatedCourse = await Course.findByIdAndUpdate(
           refund.courseId._id,
           { $inc: { enrolled_count: -1 } },
@@ -492,7 +468,6 @@ const adminProcessRefund = async (req, res) => {
         );
 
         if (!updatedCourse) {
-          // Revert all changes if course update fails
           await User.findByIdAndUpdate(
             refund.userId._id,
             {
@@ -502,7 +477,6 @@ const adminProcessRefund = async (req, res) => {
           );
           await WalletTransaction.findByIdAndDelete(walletTransaction._id);
           
-          // Restore original purchase items
           for (const purchase of originalPurchases) {
             await Purchase.findByIdAndUpdate(
               purchase._id,
@@ -513,13 +487,11 @@ const adminProcessRefund = async (req, res) => {
           throw new Error('Failed to update course enrollment count');
         }
 
-        // Clean up empty purchases
         await Purchase.deleteMany({
           userId: refund.userId._id,
           items: { $size: 0 }
         });
 
-        // Update refund status last
         refund.status = status;
         refund.adminNote = adminNote || '';
         refund.processedAt = new Date();
@@ -529,7 +501,6 @@ const adminProcessRefund = async (req, res) => {
         throw new Error(`Refund processing failed: ${error.message}`);
       }
     } else if (status === 'rejected') {
-      // Simply update refund status for rejection
       refund.status = status;
       refund.adminNote = adminNote || '';
       refund.processedAt = new Date();
@@ -541,7 +512,6 @@ const adminProcessRefund = async (req, res) => {
       });
     }
 
-    // Send success response
     return res.status(200).json({
       success: true,
       message: `Refund ${status} successfully`,
@@ -583,9 +553,7 @@ const adminGetStats = async (req, res) => {
 
 const getWalletDetails = async (req, res) => {
   try {
-    const userId = req.user._id; // Assuming user ID comes from auth middleware
-
-    // Get user's wallet balance and basic info
+    const userId = req.user._id; 
     const user = await User.findById(userId)
       .select('wallet full_name email');
 
@@ -596,12 +564,10 @@ const getWalletDetails = async (req, res) => {
       });
     }
 
-    // Get user's transactions with pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Get transactions
     const transactions = await WalletTransaction.find({ userId })
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -609,7 +575,6 @@ const getWalletDetails = async (req, res) => {
       .select('type amount description status createdAt')
       .lean();
 
-    // Get total count for pagination
     const totalTransactions = await WalletTransaction.countDocuments({ userId });
 
     return res.status(200).json({

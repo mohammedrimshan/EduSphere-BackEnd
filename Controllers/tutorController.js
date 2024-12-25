@@ -502,17 +502,14 @@ async function getTutorStats(tutorId) {
   };
 }
 
-// Your existing revenue calculation function, renamed to avoid confusion
 async function calculateRevenue(tutorId) {
   try {
-    // First get all courses by this tutor
     const tutorCourses = await mongoose.model('courses').find({
       tutor: tutorId,
       isActive: true,
       isBanned: false
     }).select('_id price offer_percentage');
     
-    // Get all successful purchases that include tutor's courses
     const purchases = await mongoose.model('Purchase').aggregate([
       {
         $match: {
@@ -601,22 +598,18 @@ const getTutorDashboardData = async (req, res) => {
   try {
     const tutorId = req.user._id;
 
-    // Fetch tutor data
     const tutor = await Tutor.findById(tutorId).select('-password');
     if (!tutor) {
       return res.status(404).json({ message: 'Tutor not found' });
     }
 
-    // Fetch tutor's courses
     const courses = await Course.find({ tutor: tutorId });
 
-    // Calculate total students (unique across all courses)
     const uniqueStudents = await Purchase.distinct('userId', {
       'items.courseId': { $in: courses.map(c => c._id) }
     });
     const totalStudents = uniqueStudents.length;
 
-    // Calculate total earnings with discounts applied
     const purchases = await Purchase.find({
       'items.courseId': { $in: courses.map(c => c._id) }
     });
@@ -632,11 +625,9 @@ const getTutorDashboardData = async (req, res) => {
       });
     });
 
-    // Calculate average rating
     const totalRating = courses.reduce((sum, course) => sum + (course.average_rating || 0), 0);
     const averageRating = courses.length > 0 ? totalRating / courses.length : 0;
 
-    // Get revenue data with discounts applied
     const revenueData = await Purchase.aggregate([
       {
         $match: {
@@ -798,6 +789,201 @@ const getTutorDashboardData = async (req, res) => {
   }
 };
 
+
+// Fetch notifications for a tutor
+const fetchTutorNotifications = async (req, res) => {
+  try {
+    const tutorId = req.user._id;
+
+    const tutor = await Tutor.findById(tutorId).select("notifications");
+
+    if (!tutor) {
+      return res.status(404).json({ error: "Tutor not found" });
+    }
+
+    const sortedNotifications = tutor.notifications.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    res.status(200).json(sortedNotifications);
+  } catch (error) {
+    console.error("Error fetching tutor notifications:", error);
+    res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+};
+
+// Add notification for a tutor
+const addTutorNotification = async (tutorId, notificationData) => {
+  try {
+    const tutor = await Tutor.findById(tutorId);
+    if (!tutor) {
+      throw new Error("Tutor not found");
+    }
+
+    tutor.notifications.push(notificationData);
+    await tutor.save();
+
+    const eventData = {
+      type: notificationData.type || "GENERAL_NOTIFICATION",
+      title: notificationData.title,
+      message: notificationData.body,
+      courseId: notificationData.courseId,
+    };
+
+    // If using SSE, write to response stream
+    if (res && res.write) {
+      res.write(`data: ${JSON.stringify(eventData)}\n\n`);
+    }
+
+    // Send push notification if FCM token exists
+    if (tutor.fcmToken) {
+      const message = {
+        notification: {
+          title: notificationData.title,
+          body: notificationData.body,
+        },
+        data: {
+          ...eventData,
+          type: eventData.type.toLowerCase()
+        },
+        token: tutor.fcmToken,
+      };
+
+      await admin.messaging().send(message);
+      console.log("Successfully sent notification to tutor:", message);
+    }
+
+    return notificationData;
+  } catch (error) {
+    console.error("Error adding tutor notification:", error);
+    throw error;
+  }
+};
+
+// Mark tutor notification as read
+const markTutorNotificationAsRead = async (req, res) => {
+  try {
+    const tutorId = req.user._id;
+    const notificationId = req.params.notificationId;
+
+    const tutor = await Tutor.findById(tutorId);
+    if (!tutor) {
+      return res.status(404).json({ error: "Tutor not found" });
+    }
+
+    const notification = tutor.notifications.id(notificationId);
+    if (!notification) {
+      return res.status(404).json({ error: "Notification not found" });
+    }
+
+    notification.read = true;
+    await tutor.save();
+
+    res.status(200).json({ message: "Notification marked as read" });
+  } catch (error) {
+    console.error("Error marking tutor notification as read:", error);
+    res.status(500).json({ error: "Failed to mark notification as read" });
+  }
+};
+
+// Register FCM token for push notifications
+const tutorPushNotification = async (req, res) => {
+  try {
+    const { token, platform } = req.body;
+    const tutorId = req.user._id;
+    
+    await Tutor.findByIdAndUpdate(
+      tutorId,
+      { fcmToken: token },
+      { new: true }
+    );
+
+    res.status(200).json({ message: "Token saved successfully" });
+  } catch (error) {
+    console.error("Error in tutorPushNotification:", error);
+    res.status(500).json({ error: "Failed to save token" });
+  }
+};
+
+// SSE stream for real-time notifications
+const tutorNotificationStream = async (req, res) => {
+  const tutorId = req.user._id;
+  let lastSentCount = null;
+  let lastSentData = null;
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "Access-Control-Allow-Origin": "http://localhost:5173",
+    "Access-Control-Allow-Credentials": "true",
+  });
+
+  const sendNotificationCount = async () => {
+    try {
+      const tutor = await Tutor.findById(tutorId);
+      if (!tutor) {
+        const errorEvent = {
+          type: "ERROR",
+          message: "Tutor not found",
+        };
+        res.write(`event: error\ndata: ${JSON.stringify(errorEvent)}\n\n`);
+        return;
+      }
+
+      const unreadNotifications = tutor.notifications.filter((n) => !n.read);
+      const currentCount = unreadNotifications.length;
+
+      const currentData = {
+        type: "NOTIFICATION_UPDATE",
+        unreadCount: currentCount,
+        notifications: unreadNotifications.map((notification) => ({
+          id: notification._id,
+          type: notification.type,
+          title: notification.title || "New Notification",
+          message: notification.body || notification.message,
+          courseId: notification.courseId,
+          createdAt: notification.createdAt,
+        })),
+      };
+
+      if (
+        lastSentCount !== currentCount ||
+        JSON.stringify(lastSentData) !== JSON.stringify(currentData)
+      ) {
+        lastSentCount = currentCount;
+        lastSentData = currentData;
+
+        res.write(
+          `event: notification\ndata: ${JSON.stringify(currentData)}\n\n`
+        );
+      }
+    } catch (error) {
+      console.error("Error in sendNotificationCount:", error);
+      const errorEvent = {
+        type: "ERROR",
+        message: "Internal server error",
+      };
+      res.write(`event: error\ndata: ${JSON.stringify(errorEvent)}\n\n`);
+    }
+  };
+
+  await sendNotificationCount();
+
+  const intervalId = setInterval(sendNotificationCount, 5000);
+
+  const heartbeatId = setInterval(() => {
+    res.write(": heartbeat\n\n");
+  }, 30000);
+
+  req.on("close", () => {
+    clearInterval(intervalId);
+    clearInterval(heartbeatId);
+    res.end();
+  });
+};
+
+
 module.exports = {
   signUp,
   login,
@@ -810,5 +996,10 @@ module.exports = {
   updateTutor,
   getUserInfo,
   calculateTutorRevenue,
-  getTutorDashboardData
+  getTutorDashboardData,
+  fetchTutorNotifications,
+  addTutorNotification,
+  markTutorNotificationAsRead,
+  tutorPushNotification,
+  tutorNotificationStream
 };
