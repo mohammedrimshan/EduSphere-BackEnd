@@ -92,7 +92,7 @@ io.on("connection", (socket) => {
   });
 
 
-console.log("PODA PATTI")
+
 
   socket.on("tutor-stop-typing", (data) => {
     if (!data || !data.chat_id) {
