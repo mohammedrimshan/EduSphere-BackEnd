@@ -1,0 +1,34 @@
+name: Auto Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy application
+      run: |
+        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << EOF
+          set -e
+          echo "Deploying to ${{ secrets.DEPLOY_PATH }}"
+          mkdir -p ${{ secrets.DEPLOY_PATH }}
+          rsync -avz --delete ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}
+          cd ${{ secrets.DEPLOY_PATH }}
+          npm install
+          pm2 restart server.js
+        EOF

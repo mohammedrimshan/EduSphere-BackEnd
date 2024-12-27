@@ -51,7 +51,7 @@ if (!courseRecommendation) {
       `${index + 1}. ${course.title}
  - Category: ${course.category}
  - Rating: ${course.averageRating}/5 ⭐
- - Learn More: http://localhost:5173/user/courseview/${course.id}`
+ - Learn More: https://edusphere.rimshan.in:5173/user/courseview/${course.id}`
     ).join('\n\n');
   }
 }

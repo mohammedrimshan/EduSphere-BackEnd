@@ -106,7 +106,7 @@ class CourseRecommendationEngine {
        ? `$${course.price} (${course.offerPercentage}% off)` 
        : 'Free'}
      - Instructor: ${course.tutor}
-     - Learn More: http://localhost:5173/user/courseview/${course.id}`
+     - Learn More: https://edusphere.rimshan.in:5173/user/courseview/${course.id}`
     ).join('\n\n');
   
     return `🚀 Related Courses Recommendation:\n\n${recommendationText}
