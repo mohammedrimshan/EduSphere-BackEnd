@@ -20,17 +20,18 @@ jobs:
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
-        echo "SSH known_hosts file:"
-        cat ~/.ssh/known_hosts
-
-    - name: Test SSH connection
-      run: ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo 'SSH connection successful'"
 
     - name: Deploy application
       run: |
-        rsync -avz --delete ./ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.DEPLOY_PATH }}
-        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << EOF
+        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+          set -e
+          echo "Navigating to deployment directory..."
           cd ${{ secrets.DEPLOY_PATH }}
+          echo "Pulling latest changes from GitHub..."
+          git pull origin main
+          echo "Installing dependencies..."
           npm install
-          pm2 restart server.js
+          echo "Restarting application..."
+          pm2 restart all
+          echo "Deployment completed!"
         EOF
