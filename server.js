@@ -31,7 +31,7 @@ require('events').EventEmitter.defaultMaxListeners = 20;
 // Socket.IO setup with CORS
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CORS_ORIGIN || "https://edusphere.rimshan.in:5173",
+    origin: process.env.CORS_ORIGIN || "https://edusphere.rimshan.in",
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"]
@@ -143,7 +143,7 @@ app.use(cookieParser());
 app.use(fileUpload());
 
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || "https://edusphere.rimshan.in:5173",
+  origin: process.env.CORS_ORIGIN || "https://edusphere.rimshan.in",
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],

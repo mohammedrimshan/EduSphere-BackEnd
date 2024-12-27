@@ -915,7 +915,7 @@ const tutorNotificationStream = async (req, res) => {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     Connection: "keep-alive",
-    "Access-Control-Allow-Origin": "https://edusphere.rimshan.in:5173",
+    "Access-Control-Allow-Origin": "https://edusphere.rimshan.in",
     "Access-Control-Allow-Credentials": "true",
   });
 
