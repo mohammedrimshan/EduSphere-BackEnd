@@ -107,6 +107,7 @@ router
   .post("/resend-otp", resendOtp)
   .post("/forgot-password", forgotPassword)
   .post("/reset-password", resetPassword)
+  .get("/coursesland", getCourses)
   .get("/verify-reset-token/:token", verifyResetToken)
   .post("/auth/google", async (req, res) => {
     try {
