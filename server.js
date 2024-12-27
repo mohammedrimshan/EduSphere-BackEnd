@@ -38,10 +38,9 @@ const io = new Server(httpServer, {
   }
 });
 
-// Set max listeners for socket.io
 io.setMaxListeners(20);
 
-// Initialize handlers
+
 const onlineStatusHandler = new OnlineStatusHandler(io);
 
 // Apply socket handling
