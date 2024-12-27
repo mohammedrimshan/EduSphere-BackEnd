@@ -91,6 +91,9 @@ io.on("connection", (socket) => {
     io.to(data.chat_id).emit("tutor-typing");
   });
 
+
+console.log("PODA PATTI")
+
   socket.on("tutor-stop-typing", (data) => {
     if (!data || !data.chat_id) {
       console.error('Invalid tutor-stop-typing event: Missing chat_id', data);
