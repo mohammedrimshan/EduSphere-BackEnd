@@ -82,7 +82,7 @@ io.on("connection", (socket) => {
       console.error(`[${new Date().toISOString()}] Error broadcasting message:`, error);
     }
   });
-  
+
   // Typing indicators
   socket.on("tutor-typing", (data) => {
     if (!data || !data.chat_id) {
@@ -111,6 +111,8 @@ io.on("connection", (socket) => {
       console.error('Invalid delete-message event: Missing chat_id or message_id', data);
       return;
     }
+
+    
     console.log(`[${new Date().toISOString()}] Deleting message in room: ${data.chat_id}, message ID: ${data.message_id}`);
     io.to(data.chat_id).emit("message-deleted", {
       chat_id: data.chat_id,
