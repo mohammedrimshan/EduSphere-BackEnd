@@ -213,6 +213,6 @@ router
   .get("/alltutors", getAllTutors)
   .get("/tutors/:tutorId", getTutorDetails)
   .get('/search', searchCourses)
-  .post('/contact', sendContactEmail)
+  //.post('/contact', sendContactEmail)
   .delete('/messages/:chat_id/:message_id', deleteMessage);
 module.exports = router;
