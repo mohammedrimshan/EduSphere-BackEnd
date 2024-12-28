@@ -153,12 +153,27 @@ const deleteChat = async (req, res) => {
 const createMessage = async (req, res) => {
   try {
     console.log('Received message request:', req.body);
-    const { chat_id, sender_id, receiver_id, message, message_text, file_url, file_type, file_name } = req.body;
+    const { chat_id, sender_id, receiver_id, message, message_text, file_url, file_type, file_name, reply_to } = req.body;
 
-    // Use message if message_text is not provided
-    // If no text message and a file is present, use a default file message
+    // Find chat and validate
+    const chat = await Chat.findById(chat_id);
+    if (!chat) {
+      throw new Error('Chat not found');
+    }
+
+    // Validate participants
+    const isValidParticipants = (
+      (sender_id === chat.user_id && receiver_id === chat.tutor_id) ||
+      (sender_id === chat.tutor_id && receiver_id === chat.user_id)
+    );
+
+    if (!isValidParticipants) {
+      throw new Error('Invalid message participants');
+    }
+
     const messageContent = message_text || message || (file_url ? 'Sent a file' : '');
 
+    // Create message
     const newMessage = await Message.create({
       chat_id,
       message_id: uuidv4(),
@@ -167,9 +182,16 @@ const createMessage = async (req, res) => {
       message_text: messageContent,
       file_url,
       file_type,
-      file_name
+      file_name,
+      reply_to: reply_to || null
     });
 
+    const populatedMessage = await Message.findById(newMessage._id).populate({
+      path: 'reply_to',
+      select: 'message_text sender_id time_stamp'
+    });
+
+    // Update chat
     await Chat.findByIdAndUpdate(chat_id, {
       last_message: {
         sender_id,
@@ -178,29 +200,105 @@ const createMessage = async (req, res) => {
       },
       updated_at: new Date(),
       $inc: { 
-        'unread_message_count.student': sender_id === receiver_id ? 1 : 0,
-        'unread_message_count.tutor': sender_id !== receiver_id ? 1 : 0
+        'unread_message_count.student': receiver_id === chat.user_id ? 1 : 0,
+        'unread_message_count.tutor': receiver_id === chat.tutor_id ? 1 : 0
       }
     });
 
-    console.log('Created new message:', newMessage);
+    // Find sender
+    const isSenderTutor = sender_id === chat.tutor_id;
+    const sender = await (isSenderTutor
+      ? Tutor.findOne({
+          $or: [
+            { user_id: sender_id },
+            { tutor_id: sender_id },
+            { _id: sender_id }
+          ]
+        })
+      : User.findOne({
+          $or: [
+            { user_id: sender_id },
+            { _id: sender_id }
+          ]
+        }));
 
-    const io = req.app.get('io');
-    if (io) {
-      try {
-        io.to(chat_id.toString()).emit('receive-message', {
-          chat: { _id: chat_id },
-          message: newMessage
-        });
-        console.log(`Message emitted to room ${chat_id}`);
-      } catch (socketError) {
-        console.error('Socket emission error:', socketError);
+    // Find receiver
+    const isReceiverTutor = receiver_id === chat.tutor_id;
+    const receiver = await (isReceiverTutor
+      ? Tutor.findOne({
+          $or: [
+            { user_id: receiver_id },
+            { tutor_id: receiver_id },
+            { _id: receiver_id }
+          ]
+        })
+      : User.findOne({
+          $or: [
+            { user_id: receiver_id },
+            { _id: receiver_id }
+          ]
+        }));
+
+    if (receiver) {
+      // Prepare notification data
+      const notificationData = {
+        title: 'New Message',
+        body: `${sender?.full_name || 'Someone'}: ${messageContent.length > 50 
+          ? messageContent.substring(0, 47) + '...' 
+          : messageContent}`
+      };
+
+      // Add to receiver's notifications array
+      const updateModel = isReceiverTutor ? Tutor : User;
+      const updateQuery = isReceiverTutor
+        ? { $or: [{ user_id: receiver_id }, { tutor_id: receiver_id }, { _id: receiver_id }] }
+        : { $or: [{ user_id: receiver_id }, { _id: receiver_id }] };
+
+      await updateModel.updateOne(
+        updateQuery,
+        {
+          $push: {
+            notifications: {
+              ...notificationData,
+              createdAt: new Date(),
+              read: false
+            }
+          }
+        }
+      );
+
+      // Send push notification if FCM token exists
+      if (receiver.fcmToken) {
+        try {
+          const message = {
+            notification: notificationData,
+            data: {
+              chatId: chat_id.toString(),
+              type: 'new_message',
+              senderId: sender_id,
+              messageId: newMessage.message_id
+            },
+            token: receiver.fcmToken
+          };
+
+          await admin.messaging().send(message);
+          console.log('Push notification sent successfully');
+        } catch (error) {
+          console.error('Failed to send push notification:', error.message);
+        }
       }
-    } else {
-      console.warn('Socket.io instance not available');
     }
 
-    res.status(201).json(newMessage);
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(chat_id.toString()).emit('receive-message', {
+        chat: { _id: chat_id },
+        message: populatedMessage
+      });
+    }
+
+    res.status(201).json(populatedMessage);
   } catch (error) {
     console.error('Error creating message:', error);
     res.status(500).json({ message: error.message });
