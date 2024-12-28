@@ -67,20 +67,22 @@ io.on("connection", (socket) => {
   socket.on("send-message", (data) => {
     console.log(`[${new Date().toISOString()}] Received message:`, data);
     
-    if (!data.chat_id) {
+    if (!data.chat?._id) {
       console.error('No chat_id provided');
       return;
     }
   
     try {
-      console.log(`Attempting to broadcast to room: ${data.chat_id}`);
-      io.to(data.chat_id).emit("receive-message", data);
-      console.log(`[${new Date().toISOString()}] Message successfully broadcasted to room: ${data.chat_id}`);
+      const roomId = data.chat._id;
+      console.log(`Attempting to broadcast to room: ${roomId}`);
+      // Broadcast to all clients in the room, including sender
+      io.in(roomId).emit("receive-message", data);
+      console.log(`[${new Date().toISOString()}] Message successfully broadcasted to room: ${roomId}`);
     } catch (error) {
       console.error(`[${new Date().toISOString()}] Error broadcasting message:`, error);
     }
   });
-
+  
   // Typing indicators
   socket.on("tutor-typing", (data) => {
     if (!data || !data.chat_id) {
@@ -137,6 +139,8 @@ io.on("connection", (socket) => {
     console.error(`[${new Date().toISOString()}] Socket error for client ${socket.id}:`, error);
   });
 });
+
+
 app.set("io", io)
 // Middleware and configuration
 app.use(express.json({ limit: "50mb" }));
