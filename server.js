@@ -183,7 +183,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use("/auth", authRoutes);
+app.use("https://edusphere.rimshan.in/auth", authRoutes);
 app.use("/user", studentRoutes);
 app.use("/tutor", tutorRoutes);
 app.use("/admin", adminRoutes);
