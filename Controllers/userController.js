@@ -146,18 +146,6 @@ const signUp = async (req, res) => {
       image: null,
     });
 
-    const accessToken = jwt.sign(
-      { id: newUser._id, role: "user" },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
-    const refreshToken = jwt.sign(
-      { id: newUser._id, role: "user" },
-      process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: "7d" }
-    );
-
     const userResponse = {
       id: newUser._id,
       full_name: newUser.full_name,
@@ -175,8 +163,6 @@ const signUp = async (req, res) => {
     res.status(201).json({
       message: "User registered successfully",
       user: userResponse,
-      accessToken,
-      refreshToken
     });
   } catch (error) {
     console.error("Error in signUp:", error);
