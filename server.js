@@ -31,7 +31,7 @@ require('events').EventEmitter.defaultMaxListeners = 20;
 // Socket.IO setup with CORS
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CORS_ORIGIN || "https://edusphere.rimshan.in",
+    origin: process.env.CORS_ORIGIN || "https://edusphere-ebon.vercel.app/",
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"]
@@ -151,7 +151,7 @@ app.use(cookieParser());
 app.use(fileUpload());
 
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || "https://edusphere.rimshan.in",
+  origin: process.env.CORS_ORIGIN || "https://edusphere-ebon.vercel.app/",
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: [
@@ -183,7 +183,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use("https://edusphere.rimshan.in/auth", authRoutes);
+app.use("https://edusphere-ebon.vercel.app//auth", authRoutes);
 app.use("/user", studentRoutes);
 app.use("/tutor", tutorRoutes);
 app.use("/admin", adminRoutes);
