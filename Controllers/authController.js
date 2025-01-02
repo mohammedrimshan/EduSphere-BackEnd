@@ -5,7 +5,7 @@ const Tutor = require("../Models/TutorModel");
 const Admin = require("../Models/AdminModel");
 require("dotenv").config();
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const client = new OAuth2Client("962246975579-6d7ophndj0l3v6knjtov419598mujber.apps.googleusercontent.com");
 //Generate Unique ID
 const generateUniqueUserID = async (prefix = "edusphereUser") => {
   const randomNumber = Math.floor(100000 + Math.random() * 900000);
@@ -21,7 +21,7 @@ const googleAuth = async (req, res) => {
     const { token } = req.body;
     const ticket = await client.verifyIdToken({
       idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: "962246975579-6d7ophndj0l3v6knjtov419598mujber.apps.googleusercontent.com",
     });
 
     const payload = ticket.getPayload();
