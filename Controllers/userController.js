@@ -564,7 +564,7 @@ const notificationStream = async (req, res) => {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     Connection: "keep-alive",
-    "Access-Control-Allow-Origin": "https://edusphere-ebon.vercel.app/",
+    "Access-Control-Allow-Origin": "https://edusphere-ebon.vercel.app",
     "Access-Control-Allow-Credentials": "true",
   });
 
